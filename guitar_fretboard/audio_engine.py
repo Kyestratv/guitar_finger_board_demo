@@ -83,6 +83,8 @@ class SineMixer:
         if duration_samples == 0:
             voice.level = target_level
             voice.level_step = 0.0
+            if target_level == 1.0:
+                voice.stage = _EnvelopeStage.SUSTAIN
         else:
             voice.level_step = (target_level - voice.level) / duration_samples
 
@@ -119,7 +121,9 @@ class SineMixer:
     def add_source(self, midi_note, source_id):
         self._validate_source(midi_note, source_id)
         with self._lock:
-            self._sources.setdefault(midi_note, set()).add(source_id)
+            sources = self._sources.setdefault(midi_note, set())
+            was_releasing = not sources and midi_note in self._voices
+            sources.add(source_id)
             if midi_note not in self._voices:
                 voice = _VoiceState()
                 self._begin_transition(
@@ -129,6 +133,13 @@ class SineMixer:
                     _EnvelopeStage.ATTACK,
                 )
                 self._voices[midi_note] = voice
+            elif was_releasing:
+                self._begin_transition(
+                    self._voices[midi_note],
+                    1.0,
+                    self._attack_samples,
+                    _EnvelopeStage.ATTACK,
+                )
 
     def remove_source(self, midi_note, source_id):
         self._validate_source(midi_note, source_id)
@@ -139,9 +150,27 @@ class SineMixer:
             sources.discard(source_id)
             if not sources:
                 del self._sources[midi_note]
-                self._voices.pop(midi_note, None)
+                voice = self._voices.get(midi_note)
+                if voice is not None:
+                    self._begin_transition(
+                        voice,
+                        0.0,
+                        self._release_samples,
+                        _EnvelopeStage.RELEASE,
+                    )
 
     def stop_all(self):
+        with self._lock:
+            self._sources.clear()
+            for voice in self._voices.values():
+                self._begin_transition(
+                    voice,
+                    target_level=0.0,
+                    duration_samples=self._release_samples,
+                    stage=_EnvelopeStage.RELEASE,
+                )
+
+    def reset(self):
         with self._lock:
             self._sources.clear()
             self._voices.clear()
@@ -259,14 +288,15 @@ class AudioEngine(QObject):
         return self.mixer.active_frequencies()
 
     def close(self):
-        self.stop_all()
         stream = self._stream
         try:
+            self.stop_all()
             if stream is not None:
                 try:
                     stream.stop()
                 finally:
                     stream.close()
         finally:
+            self.mixer.reset()
             self._stream = None
             self.available = False

@@ -70,6 +70,134 @@ def test_attack_timing_is_independent_of_block_boundaries():
     assert split == pytest.approx(whole_mixer.render(5), abs=1e-6)
 
 
+def test_final_source_removal_renders_exact_release_tail():
+    module = audio_api()
+    mixer = module.SineMixer(
+        sample_rate=1_000,
+        attack_time_ms=0,
+        release_time_ms=4,
+    )
+    mixer.set_volume_percent(100)
+    mixer.add_source(69, "release")
+    mixer.render(3)
+    mixer.remove_source(69, "release")
+
+    assert mixer.active_midi_notes() == ()
+    tail = mixer.render(4)
+    after = mixer.render(1)
+
+    phase_step = 2.0 * np.pi * module.midi_to_frequency(69) / 1_000
+    phases = phase_step * np.arange(3, 7)
+    expected = np.sin(phases) * np.array([1.0, 0.75, 0.5, 0.25])
+    assert tail == pytest.approx(expected.astype(np.float32), abs=1e-6)
+    assert after == pytest.approx(np.zeros(1, dtype=np.float32))
+
+
+def test_additional_same_pitch_source_does_not_retrigger_envelope():
+    module = audio_api()
+    mixer = module.SineMixer(sample_rate=1_000, attack_time_ms=4)
+    mixer.add_source(69, "first")
+    mixer.render(2)
+    level_before = mixer._voices[69].level
+
+    mixer.add_source(69, "second")
+
+    assert mixer._voices[69].level == pytest.approx(level_before)
+    assert mixer._voices[69].samples_remaining == 2
+
+
+def test_retrigger_during_release_preserves_phase_and_attacks_from_current_level():
+    module = audio_api()
+    mixer = module.SineMixer(
+        sample_rate=1_000,
+        attack_time_ms=4,
+        release_time_ms=4,
+    )
+    mixer.add_source(69, "first")
+    mixer.render(4)
+    mixer.remove_source(69, "first")
+    mixer.render(2)
+    voice = mixer._voices[69]
+    phase_before = voice.phase
+    level_before = voice.level
+
+    mixer.add_source(69, "retrigger")
+
+    voice = mixer._voices[69]
+    assert voice.phase == pytest.approx(phase_before)
+    assert voice.level == pytest.approx(level_before)
+    assert voice.samples_remaining == 4
+    mixer.render(4)
+    assert voice.level == pytest.approx(1.0)
+    assert voice.samples_remaining == 0
+
+
+def test_removing_one_of_two_sources_does_not_begin_release():
+    module = audio_api()
+    mixer = module.SineMixer(sample_rate=1_000, attack_time_ms=0)
+    mixer.add_source(69, "first")
+    mixer.add_source(69, "second")
+
+    mixer.remove_source(69, "first")
+
+    assert mixer.active_midi_notes() == (69,)
+    assert mixer._voices[69].stage is module._EnvelopeStage.SUSTAIN
+
+
+def test_stop_all_clears_reporting_and_renders_release_tail_until_reset():
+    mixer = audio_api().SineMixer(
+        sample_rate=1_000,
+        attack_time_ms=0,
+        release_time_ms=4,
+    )
+    mixer.set_volume_percent(100)
+    mixer.add_source(69, "stop_all")
+    mixer.render(1)
+
+    mixer.stop_all()
+
+    assert mixer.active_frequencies() == ()
+    assert np.count_nonzero(mixer.render(4)) > 0
+    assert np.count_nonzero(mixer.render(1)) == 0
+    mixer.add_source(69, "reset")
+    mixer.reset()
+    assert np.count_nonzero(mixer.render(1)) == 0
+
+
+def test_zero_duration_transitions_apply_targets_immediately():
+    module = audio_api()
+    mixer = module.SineMixer(
+        sample_rate=1_000,
+        attack_time_ms=0,
+        release_time_ms=0,
+    )
+    mixer.add_source(69, "zero_duration")
+    assert mixer._voices[69].level == pytest.approx(1.0)
+
+    mixer.remove_source(69, "zero_duration")
+
+    assert np.count_nonzero(mixer.render(1)) == 0
+    assert 69 not in mixer._voices
+
+
+def test_envelope_weighted_normalization_bounds_output_without_attack_jump():
+    module = audio_api()
+    mixer = module.SineMixer(sample_rate=1_000, attack_time_ms=4)
+    reference = module.SineMixer(sample_rate=1_000, attack_time_ms=4)
+    for candidate in (mixer, reference):
+        candidate.set_volume_percent(100)
+        candidate.add_source(69, "existing")
+        candidate.render(5)
+
+    mixer.add_source(72, "new")
+    first_with_new_voice = mixer.render(1)
+    first_reference = reference.render(1)
+    remainder = mixer.render(32)
+
+    assert first_with_new_voice == pytest.approx(first_reference, abs=1e-6)
+    assert np.max(np.abs(remainder)) <= 1.0
+
+
 class FakeStream:
     def __init__(
         self,
@@ -163,13 +291,22 @@ def test_rendered_block_contains_both_simultaneous_voices():
 
 
 def test_silence_volume_and_stop_all():
-    mixer = audio_api().SineMixer()
+    mixer = audio_api().SineMixer(
+        sample_rate=1_000,
+        attack_time_ms=0,
+        release_time_ms=4,
+    )
     assert np.count_nonzero(mixer.render(64)) == 0
     mixer.add_source(69, "a")
     mixer.set_volume_percent(0)
     assert np.count_nonzero(mixer.render(64)) == 0
+    mixer.set_volume_percent(100)
     mixer.stop_all()
     assert mixer.active_frequencies() == ()
+    assert np.count_nonzero(mixer.render(4)) > 0
+    mixer.add_source(69, "reset")
+    mixer.reset()
+    assert np.count_nonzero(mixer.render(1)) == 0
 
 
 @pytest.mark.parametrize("midi_note", [-1, 128])
@@ -341,6 +478,7 @@ def test_close_closes_stream_and_clears_state_when_stop_fails():
     assert streams[0].closed
     assert engine._stream is None
     assert engine.available is False
+    assert engine.mixer._voices == {}
 
 
 def test_close_clears_engine_state_when_stream_close_fails():
@@ -357,6 +495,7 @@ def test_close_clears_engine_state_when_stream_close_fails():
 
     assert engine._stream is None
     assert engine.available is False
+    assert engine.mixer._voices == {}
 
 
 def test_callback_failure_writes_silence_and_emits_only_once(qtbot):
