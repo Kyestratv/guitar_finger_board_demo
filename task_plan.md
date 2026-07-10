@@ -4,7 +4,7 @@
 Build and verify a professional English-language Python GUI that visualizes a 6-string, 22-fret guitar fretboard, labels pitches in four modes, and supports polyphonic sine-wave playback.
 
 ## Current Phase
-Complete
+Phase 7
 
 ## Phases
 
@@ -49,6 +49,16 @@ Complete
 - [x] Commit the complete final-fix wave
 - **Status:** complete
 
+### Phase 7: Click-Free Playback Envelopes
+- [x] Reproduce and trace start/stop discontinuities in `SineMixer`
+- [x] Confirm configurable attack/release behavior
+- [x] Compare envelope approaches and approve a focused design
+- [x] Write the approved design specification
+- [x] Write the implementation plan
+- [ ] Implement with RED/GREEN envelope regressions
+- [ ] Run full verification and review
+- **Status:** in_progress
+
 ## Key Questions
 1. May the project use third-party Python dependencies such as PySide6, NumPy, and sounddevice? **Yes.**
 2. How should right-button momentary playback interact with left-button toggle playback? **Track independent sources so releasing a momentary source cannot stop a latched source.**
@@ -70,6 +80,9 @@ Complete
 | Use fixed-do solfege | Confirmed by the user; pitch-class syllables do not change with the selected key |
 | Use PySide6 + NumPy + sounddevice | Selected by the user after comparing three implementation approaches |
 | Stop playback on mode or scale changes and provide Stop All | Prevents hidden Scale Degree positions from leaving inaccessible latched notes active |
+| Configure attack and release independently | User approved editable `ATTACK_TIME_MS` and `RELEASE_TIME_MS` values |
+| Use sample-accurate linear per-voice envelopes | User selected the recommended approach; it is block-size independent and directly testable |
+| Normalize by per-sample envelope-gain sum | Keeps output bounded while removing instantaneous voice-count rescaling |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
@@ -80,6 +93,7 @@ Complete
 | Worktree safety check tested the absent directory node instead of its target path | 1 | Verified `.worktrees/guitar-fretboard-implementation` with `git check-ignore -v` and then created the worktree |
 | Baseline pytest command could not run because pytest is not installed | 1 | Confirmed Task 1 owns dependency installation; retained clean compile and Git baselines |
 | Worktree-directory detection command exited 1 when optional directories were absent | 1 | Interpreted the printed Git metadata, then added the default `.worktrees/` ignore rule explicitly |
+| Initial Phase 7 planning patch used stale Phase 6 context | 1 | Re-read current planning headings and applied a targeted update |
 
 ## Notes
 - Re-read this plan before major decisions.

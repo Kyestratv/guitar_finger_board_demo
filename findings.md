@@ -74,6 +74,19 @@
 - The final 13-item audit found code and automated-test evidence for all 12 original requirements and the approved major/natural-minor scale extension.
 - Physical speaker output remains the only unverified hardware-dependent behavior; no real audio-device test was performed.
 
+## Playback Click Investigation
+- `SineMixer.add_source()` makes a voice full-scale immediately, while `remove_source()` deletes its phase and source state immediately.
+- The mixer divides every buffer by the current unique-note count, so adding or removing a note also changes already-playing voice amplitude at one buffer boundary.
+- A 48 kHz diagnostic measured a `0.427682` boundary jump when adding a second voice and showed a solo note reaching almost full amplitude within 64 samples (about 1.33 ms).
+- Root cause: discontinuous per-voice amplitude plus instantaneous voice-count normalization creates broadband transients. The durable fix is a configurable per-voice attack/release envelope that retains releasing voices until their gain reaches zero.
+- The user approved separate editable `ATTACK_TIME_MS` and `RELEASE_TIME_MS` configuration values.
+- The user selected sample-accurate linear per-voice attack/sustain/release envelopes.
+- Envelope-weighted normalization is preferred over instant voice-count division: divide each sample by `max(1, sum(envelope_gains))`, so the normalization factor changes gradually with the envelopes and remains bounded without a nonlinear limiter.
+- The user approved the full design, including release-tail retention, smooth re-triggering, Stop All release, and immediate device-shutdown reset.
+- The envelope design passed placeholder/consistency review and was committed as `3f7b4c3`.
+- Detailed TDD implementation plan written to `docs/superpowers/plans/2026-07-10-click-free-playback-envelopes.md`.
+- The plan passed placeholder, type/interface, and design-coverage review and was committed as `b715507`.
+
 ## Resources
 - `task.md`
 
