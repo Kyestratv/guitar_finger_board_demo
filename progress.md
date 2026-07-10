@@ -122,6 +122,8 @@
   - Self-reviewed and committed the envelope design as `3f7b4c3`.
   - Wrote the three-task RED/GREEN implementation plan for configuration/attack, release/source lifecycle, and final verification.
   - Self-reviewed and committed the implementation plan as `b715507`.
+  - Task 1 added editable envelope defaults, validated overrides, sample-accurate attack state, and envelope-weighted normalization.
+  - Task 1 independent review approved spec compliance and code quality; two optional test-hardening notes remain for final review.
 - Files modified:
   - `task_plan.md`, `findings.md`, and `progress.md`
 
@@ -148,6 +150,7 @@
 | Final-review full suite | `$env:QT_QPA_PLATFORM='offscreen'; python -m pytest -q` | Zero failures | 75 passed in 2.62s | Pass |
 | Final-review compile check | `python -m compileall -q guitar_fretboard main.py tests` | Exit 0, no output | Exit 0, no output | Pass |
 | Final-review offscreen GUI smoke | Exact Task 5 offscreen `python -c` command | Exit 0, no output | Exit 0, no output | Pass |
+| Envelope Task 1 focused/audio/full suites | Focused attack tests; `tests/test_audio_engine.py`; full pytest | Zero failures | 7 focused, 27 audio, 83 total passed | Pass |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
