@@ -54,6 +54,8 @@
   - Task 3 implemented 138 reusable note buttons, fret/string headers, octave colors, legend, labels, and mouse signals.
   - Task 3 review found and fixed whole-column shrinkage by retaining hidden-button layout size.
   - Task 3 re-review approved the implementation; one optional header-coordinate test note remains for final review.
+  - Task 4 integrated all controls, source-aware playback state, active frequencies, audio errors, and shutdown behavior.
+  - Task 4 independent review approved spec compliance and code quality; two optional robustness/test notes remain for final review.
 - Files created/modified:
   - `.gitignore` (created)
 
@@ -64,6 +66,7 @@
 | Task 1 focused/full suite | `python -m pytest tests/test_music_theory.py -v`; `python -m pytest -q` | Music theory tests pass | 4 passed | Pass |
 | Task 2 focused/full suite after fixes | `python -m pytest tests/test_audio_engine.py -v`; `python -m pytest -q` | Audio and regression tests pass | 16 focused; 20 total passed | Pass |
 | Task 3 focused/full suite after fix | `python -m pytest tests/test_fretboard_widget.py -v`; `python -m pytest -q` | Fretboard and regression tests pass | 6 focused; 26 total passed | Pass |
+| Task 4 focused/full suite | `python -m pytest tests/test_main_window.py -v`; `python -m pytest -q` | Main-window and regression tests pass | 12 focused; 38 total passed | Pass |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
