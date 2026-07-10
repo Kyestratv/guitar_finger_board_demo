@@ -24,7 +24,10 @@ def test_default_envelope_times_come_from_audio_config():
     assert mixer.release_time_ms == audio_config.RELEASE_TIME_MS
 
 
-@pytest.mark.parametrize("value", [-1, float("inf"), float("nan"), "10"])
+@pytest.mark.parametrize(
+    "value",
+    [-1, float("inf"), float("nan"), "10", True, False],
+)
 def test_envelope_times_must_be_finite_nonnegative_numbers(value):
     module = audio_api()
 
@@ -113,6 +116,7 @@ def test_retrigger_during_release_preserves_phase_and_attacks_from_current_level
         attack_time_ms=4,
         release_time_ms=4,
     )
+    mixer.set_volume_percent(100)
     mixer.add_source(69, "first")
     mixer.render(4)
     mixer.remove_source(69, "first")
@@ -127,7 +131,21 @@ def test_retrigger_during_release_preserves_phase_and_attacks_from_current_level
     assert voice.phase == pytest.approx(phase_before)
     assert voice.level == pytest.approx(level_before)
     assert voice.samples_remaining == 4
-    mixer.render(4)
+    phase_step = 2.0 * np.pi * module.midi_to_frequency(69) / 1_000
+    expected_levels = level_before + (
+        (1.0 - level_before) / 4 * np.arange(4)
+    )
+    rendered = []
+    for offset, expected_level in enumerate(expected_levels):
+        rendered.append(mixer.render(1)[0])
+        assert voice.phase == pytest.approx(
+            (phase_before + phase_step * (offset + 1)) % (2.0 * np.pi)
+        )
+        assert rendered[-1] == pytest.approx(
+            np.sin(phase_before + phase_step * offset) * expected_level,
+            abs=1e-6,
+        )
+
     assert voice.level == pytest.approx(1.0)
     assert voice.samples_remaining == 0
 
@@ -195,7 +213,45 @@ def test_envelope_weighted_normalization_bounds_output_without_attack_jump():
     remainder = mixer.render(32)
 
     assert first_with_new_voice == pytest.approx(first_reference, abs=1e-6)
-    assert np.max(np.abs(remainder)) <= 1.0
+    complete_output = np.concatenate((first_with_new_voice, remainder))
+    assert np.max(np.abs(complete_output)) <= 1.0
+
+
+def test_simultaneous_intermediate_envelopes_use_exact_weighted_normalization():
+    module = audio_api()
+    sample_rate = 1_000
+    mixer = module.SineMixer(sample_rate=sample_rate, attack_time_ms=8)
+    mixer.set_volume_percent(100)
+    mixer.add_source(69, "first")
+    mixer.render(2)
+    mixer.add_source(72, "second")
+    mixer.render(2)
+
+    frames = 3
+    rendered = mixer.render(frames)
+
+    positions = np.arange(frames)
+    first_levels = np.array([0.5, 0.625, 0.75])
+    second_levels = np.array([0.25, 0.375, 0.5])
+    first = np.sin(
+        2.0
+        * np.pi
+        * module.midi_to_frequency(69)
+        * (positions + 4)
+        / sample_rate
+    )
+    second = np.sin(
+        2.0
+        * np.pi
+        * module.midi_to_frequency(72)
+        * (positions + 2)
+        / sample_rate
+    )
+    expected = (
+        first * first_levels + second * second_levels
+    ) / np.maximum(1.0, first_levels + second_levels)
+
+    assert rendered == pytest.approx(expected.astype(np.float32), abs=1e-6)
 
 
 class FakeStream:
