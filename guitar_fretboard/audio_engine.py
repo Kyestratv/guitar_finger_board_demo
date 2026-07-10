@@ -1,5 +1,5 @@
 import math
-from threading import RLock
+from threading import Lock, RLock
 
 import numpy as np
 from PySide6.QtCore import QObject, Signal
@@ -100,6 +100,7 @@ class AudioEngine(QObject):
         self._stream = None
         self.available = False
         self._callback_error_reported = False
+        self._callback_error_lock = Lock()
 
     def _callback(self, outdata, frames, time_info, status):
         del time_info, status
@@ -107,21 +108,31 @@ class AudioEngine(QObject):
             outdata[:, 0] = self.mixer.render(frames)
         except Exception as exc:
             outdata.fill(0)
-            if not self._callback_error_reported:
-                self._callback_error_reported = True
+            with self._callback_error_lock:
+                report_error = not self._callback_error_reported
+                if report_error:
+                    self._callback_error_reported = True
+            if report_error:
                 self.error_occurred.emit(f"Audio rendering failed: {exc}")
 
     def start(self):
+        stream = None
         try:
-            self._stream = self._stream_factory(
+            stream = self._stream_factory(
                 samplerate=self.mixer.sample_rate,
                 channels=1,
                 dtype="float32",
                 callback=self._callback,
             )
-            self._stream.start()
+            self._stream = stream
+            stream.start()
             self.available = True
         except Exception as exc:
+            if stream is not None:
+                try:
+                    stream.close()
+                except Exception:
+                    pass
             self.available = False
             self._stream = None
             raise AudioDeviceError(
@@ -146,8 +157,13 @@ class AudioEngine(QObject):
 
     def close(self):
         self.stop_all()
-        if self._stream is not None:
-            self._stream.stop()
-            self._stream.close()
-        self._stream = None
-        self.available = False
+        stream = self._stream
+        try:
+            if stream is not None:
+                try:
+                    stream.stop()
+                finally:
+                    stream.close()
+        finally:
+            self._stream = None
+            self.available = False

@@ -1,4 +1,5 @@
 import importlib
+import threading
 
 import numpy as np
 import pytest
@@ -12,9 +13,10 @@ def audio_api():
 
 
 class FakeStream:
-    def __init__(self, *, start_error=None, **kwargs):
+    def __init__(self, *, start_error=None, stop_error=None, **kwargs):
         self.kwargs = kwargs
         self.start_error = start_error
+        self.stop_error = stop_error
         self.started = False
         self.stopped = False
         self.closed = False
@@ -26,6 +28,8 @@ class FakeStream:
 
     def stop(self):
         self.stopped = True
+        if self.stop_error is not None:
+            raise self.stop_error
 
     def close(self):
         self.closed = True
@@ -163,14 +167,39 @@ def test_factory_error_is_translated_to_audio_device_error():
 
 def test_stream_start_error_is_translated_to_audio_device_error():
     module = audio_api()
+    streams = []
 
     def stream_factory(**kwargs):
-        return FakeStream(start_error=OSError("start failed"), **kwargs)
+        stream = FakeStream(start_error=OSError("start failed"), **kwargs)
+        streams.append(stream)
+        return stream
 
     engine = module.AudioEngine(stream_factory=stream_factory)
 
     with pytest.raises(module.AudioDeviceError, match="start failed"):
         engine.start()
+    assert engine.available is False
+    assert streams[0].closed
+
+
+def test_close_closes_stream_and_clears_state_when_stop_fails():
+    module = audio_api()
+    streams = []
+
+    def stream_factory(**kwargs):
+        stream = FakeStream(stop_error=OSError("stop failed"), **kwargs)
+        streams.append(stream)
+        return stream
+
+    engine = module.AudioEngine(stream_factory=stream_factory)
+    engine.start()
+
+    with pytest.raises(OSError, match="stop failed"):
+        engine.close()
+
+    assert streams[0].stopped
+    assert streams[0].closed
+    assert engine._stream is None
     assert engine.available is False
 
 
@@ -192,3 +221,55 @@ def test_callback_failure_writes_silence_and_emits_only_once(qtbot):
 
     assert np.count_nonzero(outdata) == 0
     assert errors == ["Audio rendering failed: synthesis exploded"]
+
+
+def test_concurrent_callback_failures_emit_only_once(qtbot):
+    module = audio_api()
+    worker_count = 4
+
+    class FailingMixer(module.SineMixer):
+        def render(self, frames):
+            del frames
+            raise RuntimeError("concurrent failure")
+
+    class RaceAmplifyingAudioEngine(module.AudioEngine):
+        def __init__(self, *args, **kwargs):
+            self._report_read_barrier = threading.Barrier(worker_count)
+            super().__init__(*args, **kwargs)
+
+        def __getattribute__(self, name):
+            value = super().__getattribute__(name)
+            if (
+                name == "_callback_error_reported"
+                and value is False
+                and threading.current_thread() is not threading.main_thread()
+            ):
+                try:
+                    self._report_read_barrier.wait(timeout=0.2)
+                except threading.BrokenBarrierError:
+                    pass
+            return value
+
+    engine = RaceAmplifyingAudioEngine(
+        mixer=FailingMixer(),
+        stream_factory=FakeStream,
+    )
+    errors = []
+    engine.error_occurred.connect(errors.append)
+
+    threads = [
+        threading.Thread(
+            target=engine._callback,
+            args=(np.ones((16, 1), dtype=np.float32), 16, object(), object()),
+        )
+        for _ in range(worker_count)
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=1)
+
+    assert all(not thread.is_alive() for thread in threads)
+    qtbot.waitUntil(lambda: len(errors) >= 1)
+    qtbot.wait(50)
+    assert errors == ["Audio rendering failed: concurrent failure"]
