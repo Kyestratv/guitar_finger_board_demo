@@ -12,6 +12,64 @@ def audio_api():
         pytest.fail(f"Audio-engine API is not implemented: {error}")
 
 
+def test_default_envelope_times_come_from_audio_config():
+    module = audio_api()
+    from guitar_fretboard import audio_config
+
+    mixer = module.SineMixer()
+
+    assert audio_config.ATTACK_TIME_MS == 10.0
+    assert audio_config.RELEASE_TIME_MS == 20.0
+    assert mixer.attack_time_ms == audio_config.ATTACK_TIME_MS
+    assert mixer.release_time_ms == audio_config.RELEASE_TIME_MS
+
+
+@pytest.mark.parametrize("value", [-1, float("inf"), float("nan"), "10"])
+def test_envelope_times_must_be_finite_nonnegative_numbers(value):
+    module = audio_api()
+
+    with pytest.raises(ValueError, match="attack_time_ms"):
+        module.SineMixer(attack_time_ms=value)
+    with pytest.raises(ValueError, match="release_time_ms"):
+        module.SineMixer(release_time_ms=value)
+
+
+def test_attack_uses_exact_configured_sample_count():
+    module = audio_api()
+    mixer = module.SineMixer(
+        sample_rate=1_000,
+        attack_time_ms=4.0,
+        release_time_ms=4.0,
+    )
+    mixer.set_volume_percent(100)
+    mixer.add_source(69, "attack")
+
+    rendered = mixer.render(5)
+
+    phase_step = 2.0 * np.pi * module.midi_to_frequency(69) / 1_000
+    sine = np.sin(phase_step * np.arange(5))
+    expected_levels = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+    assert rendered == pytest.approx(
+        (sine * expected_levels).astype(np.float32),
+        abs=1e-6,
+    )
+
+
+def test_attack_timing_is_independent_of_block_boundaries():
+    module = audio_api()
+
+    split_mixer = module.SineMixer(sample_rate=1_000, attack_time_ms=4.0)
+    split_mixer.set_volume_percent(100)
+    split_mixer.add_source(69, "attack")
+    split = np.concatenate((split_mixer.render(2), split_mixer.render(3)))
+
+    whole_mixer = module.SineMixer(sample_rate=1_000, attack_time_ms=4.0)
+    whole_mixer.set_volume_percent(100)
+    whole_mixer.add_source(69, "attack")
+
+    assert split == pytest.approx(whole_mixer.render(5), abs=1e-6)
+
+
 class FakeStream:
     def __init__(
         self,
@@ -58,7 +116,7 @@ def test_pitch_remains_active_until_final_source_is_removed():
 
 
 def test_render_is_float32_bounded_and_analytically_phase_continuous():
-    mixer = audio_api().SineMixer(sample_rate=48_000)
+    mixer = audio_api().SineMixer(sample_rate=48_000, attack_time_ms=0)
     mixer.set_volume_percent(100)
     mixer.add_source(69, "test")
     frames = 257
@@ -81,7 +139,7 @@ def test_render_is_float32_bounded_and_analytically_phase_continuous():
 
 def test_rendered_block_contains_both_simultaneous_voices():
     module = audio_api()
-    mixer = module.SineMixer(sample_rate=48_000)
+    mixer = module.SineMixer(sample_rate=48_000, attack_time_ms=0)
     mixer.set_volume_percent(100)
     mixer.add_source(69, "a4")
     mixer.add_source(72, "c5")

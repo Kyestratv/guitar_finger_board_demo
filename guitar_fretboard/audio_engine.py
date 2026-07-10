@@ -1,10 +1,13 @@
 import math
+from dataclasses import dataclass
+from enum import Enum
 from threading import Lock, RLock
 
 import numpy as np
 from PySide6.QtCore import QObject, Signal
 import sounddevice
 
+from guitar_fretboard.audio_config import ATTACK_TIME_MS, RELEASE_TIME_MS
 from guitar_fretboard.music_theory import midi_to_frequency
 
 
@@ -12,13 +15,99 @@ class AudioDeviceError(RuntimeError):
     pass
 
 
+class _EnvelopeStage(Enum):
+    ATTACK = "attack"
+    SUSTAIN = "sustain"
+    RELEASE = "release"
+
+
+@dataclass(slots=True)
+class _VoiceState:
+    phase: float = 0.0
+    level: float = 0.0
+    stage: _EnvelopeStage = _EnvelopeStage.ATTACK
+    target_level: float = 1.0
+    samples_remaining: int = 0
+    level_step: float = 0.0
+
+
 class SineMixer:
-    def __init__(self, sample_rate=48_000):
+    def __init__(
+        self,
+        sample_rate=48_000,
+        attack_time_ms=None,
+        release_time_ms=None,
+    ):
         self.sample_rate = sample_rate
+        self.attack_time_ms = self._validated_duration(
+            "attack_time_ms",
+            ATTACK_TIME_MS if attack_time_ms is None else attack_time_ms,
+        )
+        self.release_time_ms = self._validated_duration(
+            "release_time_ms",
+            RELEASE_TIME_MS if release_time_ms is None else release_time_ms,
+        )
+        self._attack_samples = self._duration_samples(self.attack_time_ms)
+        self._release_samples = self._duration_samples(self.release_time_ms)
         self._lock = RLock()
         self._sources: dict[int, set[str]] = {}
-        self._phases: dict[int, float] = {}
+        self._voices: dict[int, _VoiceState] = {}
         self._gain = 0.5
+
+    @staticmethod
+    def _validated_duration(name, value):
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value < 0
+        ):
+            raise ValueError(f"{name} must be a finite nonnegative number")
+        return value
+
+    def _duration_samples(self, duration_ms):
+        if duration_ms == 0:
+            return 0
+        return max(1, round(duration_ms * self.sample_rate / 1000.0))
+
+    @staticmethod
+    def _begin_transition(
+        voice,
+        target_level,
+        duration_samples,
+        stage,
+    ):
+        voice.stage = stage
+        voice.target_level = target_level
+        voice.samples_remaining = duration_samples
+        if duration_samples == 0:
+            voice.level = target_level
+            voice.level_step = 0.0
+        else:
+            voice.level_step = (target_level - voice.level) / duration_samples
+
+    @staticmethod
+    def _render_envelope(voice, frames):
+        levels = np.empty(frames, dtype=np.float64)
+        cursor = 0
+        while cursor < frames:
+            if voice.samples_remaining == 0:
+                levels[cursor:] = voice.level
+                break
+            count = min(frames - cursor, voice.samples_remaining)
+            levels[cursor : cursor + count] = (
+                voice.level
+                + voice.level_step * np.arange(count, dtype=np.float64)
+            )
+            voice.level += voice.level_step * count
+            voice.samples_remaining -= count
+            cursor += count
+            if voice.samples_remaining == 0:
+                voice.level = voice.target_level
+                voice.level_step = 0.0
+                if voice.level == 1.0:
+                    voice.stage = _EnvelopeStage.SUSTAIN
+        return levels
 
     @staticmethod
     def _validate_source(midi_note, source_id):
@@ -31,7 +120,15 @@ class SineMixer:
         self._validate_source(midi_note, source_id)
         with self._lock:
             self._sources.setdefault(midi_note, set()).add(source_id)
-            self._phases.setdefault(midi_note, 0.0)
+            if midi_note not in self._voices:
+                voice = _VoiceState()
+                self._begin_transition(
+                    voice,
+                    1.0,
+                    self._attack_samples,
+                    _EnvelopeStage.ATTACK,
+                )
+                self._voices[midi_note] = voice
 
     def remove_source(self, midi_note, source_id):
         self._validate_source(midi_note, source_id)
@@ -42,12 +139,12 @@ class SineMixer:
             sources.discard(source_id)
             if not sources:
                 del self._sources[midi_note]
-                self._phases.pop(midi_note, None)
+                self._voices.pop(midi_note, None)
 
     def stop_all(self):
         with self._lock:
             self._sources.clear()
-            self._phases.clear()
+            self._voices.clear()
 
     def set_volume_percent(self, percent):
         if not 0 <= percent <= 100:
@@ -64,30 +161,32 @@ class SineMixer:
 
     def render(self, frames):
         with self._lock:
-            notes = tuple(sorted(self._sources))
-            phases = {note: self._phases[note] for note in notes}
-            gain = self._gain
+            if not self._voices:
+                return np.zeros(frames, dtype=np.float32)
 
-        if not notes:
-            return np.zeros(frames, dtype=np.float32)
+            sample_positions = np.arange(frames, dtype=np.float64)
+            mixed = np.zeros(frames, dtype=np.float64)
+            envelope_total = np.zeros(frames, dtype=np.float64)
+            released_notes = []
+            for note, voice in self._voices.items():
+                frequency = midi_to_frequency(note)
+                phase_step = 2.0 * math.pi * frequency / self.sample_rate
+                sine = np.sin(voice.phase + phase_step * sample_positions)
+                voice.phase = (voice.phase + phase_step * frames) % (
+                    2.0 * math.pi
+                )
+                envelope = self._render_envelope(voice, frames)
+                mixed += sine * envelope
+                envelope_total += envelope
+                if voice.stage is _EnvelopeStage.RELEASE and voice.level == 0.0:
+                    released_notes.append(note)
 
-        sample_positions = np.arange(frames, dtype=np.float64)
-        mixed = np.zeros(frames, dtype=np.float64)
-        next_phases = {}
-        for note in notes:
-            frequency = midi_to_frequency(note)
-            phase_step = 2.0 * math.pi * frequency / self.sample_rate
-            phase = phases[note]
-            mixed += np.sin(phase + phase_step * sample_positions)
-            next_phases[note] = (phase + phase_step * frames) % (2.0 * math.pi)
+            for note in released_notes:
+                self._voices.pop(note, None)
 
-        with self._lock:
-            for note, phase in next_phases.items():
-                if note in self._sources and self._phases.get(note) == phases[note]:
-                    self._phases[note] = phase
-
-        mixed *= gain / len(notes)
-        return mixed.astype(np.float32)
+            normalizer = np.maximum(1.0, envelope_total)
+            output = mixed * self._gain / normalizer
+            return output.astype(np.float32)
 
 
 class AudioEngine(QObject):
