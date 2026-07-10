@@ -31,6 +31,17 @@ python main.py
 
 The fretboard can be scrolled horizontally when the complete 23-position width does not fit in the window.
 
+## Building a Windows Executable
+
+Install the development dependencies and build the windowed single-file executable with PyInstaller:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m PyInstaller --noconfirm --clean GuitarFretboardVisualizer.spec
+```
+
+The result is `dist\GuitarFretboardVisualizer.exe`. It can be copied to another Windows machine without installing Python. A working audio output device is still required for sound playback.
+
 ## Controls
 
 - **Pitch Name** displays scientific pitch notation, such as `A4` and `A♯4`.
