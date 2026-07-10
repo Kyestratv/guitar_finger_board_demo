@@ -13,10 +13,18 @@ def audio_api():
 
 
 class FakeStream:
-    def __init__(self, *, start_error=None, stop_error=None, **kwargs):
+    def __init__(
+        self,
+        *,
+        start_error=None,
+        stop_error=None,
+        close_error=None,
+        **kwargs,
+    ):
         self.kwargs = kwargs
         self.start_error = start_error
         self.stop_error = stop_error
+        self.close_error = close_error
         self.started = False
         self.stopped = False
         self.closed = False
@@ -33,6 +41,8 @@ class FakeStream:
 
     def close(self):
         self.closed = True
+        if self.close_error is not None:
+            raise self.close_error
 
 
 def test_pitch_remains_active_until_final_source_is_removed():
@@ -47,17 +57,51 @@ def test_pitch_remains_active_until_final_source_is_removed():
     assert mixer.active_midi_notes() == ()
 
 
-def test_render_is_float32_bounded_and_phase_continuous():
+def test_render_is_float32_bounded_and_analytically_phase_continuous():
     mixer = audio_api().SineMixer(sample_rate=48_000)
     mixer.set_volume_percent(100)
     mixer.add_source(69, "test")
+    frames = 257
+    phase_step = 2.0 * np.pi * 440.0 / mixer.sample_rate
 
-    first = mixer.render(480)
-    second = mixer.render(480)
+    first = mixer.render(frames)
+    second = mixer.render(frames)
 
     assert first.dtype == np.float32
     assert np.max(np.abs(first)) <= 1.0
-    assert not np.array_equal(first, second)
+    assert first == pytest.approx(
+        np.sin(phase_step * np.arange(frames)).astype(np.float32),
+        abs=1e-6,
+    )
+    assert second == pytest.approx(
+        np.sin(phase_step * np.arange(frames, frames * 2)).astype(np.float32),
+        abs=1e-6,
+    )
+
+
+def test_rendered_block_contains_both_simultaneous_voices():
+    module = audio_api()
+    mixer = module.SineMixer(sample_rate=48_000)
+    mixer.set_volume_percent(100)
+    mixer.add_source(69, "a4")
+    mixer.add_source(72, "c5")
+    frames = 96
+
+    rendered = mixer.render(frames)
+
+    positions = np.arange(frames)
+    a4 = np.sin(
+        2.0 * np.pi * module.midi_to_frequency(69) * positions / 48_000
+    )
+    c5 = np.sin(
+        2.0 * np.pi * module.midi_to_frequency(72) * positions / 48_000
+    )
+    assert rendered == pytest.approx(
+        ((a4 + c5) / 2.0).astype(np.float32),
+        abs=1e-6,
+    )
+    assert not np.allclose(rendered, a4.astype(np.float32))
+    assert not np.allclose(rendered, c5.astype(np.float32))
 
 
 def test_silence_volume_and_stop_all():
@@ -139,6 +183,30 @@ def test_engine_starts_stream_fills_channel_and_closes():
     assert engine.active_frequencies() == ()
 
 
+def test_engine_uses_a_supplied_falsey_stream_factory():
+    module = audio_api()
+
+    class FalseyStreamFactory:
+        def __init__(self):
+            self.calls = []
+
+        def __bool__(self):
+            return False
+
+        def __call__(self, **kwargs):
+            self.calls.append(kwargs)
+            return FakeStream(**kwargs)
+
+    factory = FalseyStreamFactory()
+    engine = module.AudioEngine(stream_factory=factory)
+
+    engine.start()
+
+    assert engine._stream_factory is factory
+    assert len(factory.calls) == 1
+    engine.close()
+
+
 def test_engine_ignores_new_sources_until_stream_is_available():
     module = audio_api()
     engine = module.AudioEngine(stream_factory=FakeStream)
@@ -199,6 +267,22 @@ def test_close_closes_stream_and_clears_state_when_stop_fails():
 
     assert streams[0].stopped
     assert streams[0].closed
+    assert engine._stream is None
+    assert engine.available is False
+
+
+def test_close_clears_engine_state_when_stream_close_fails():
+    module = audio_api()
+
+    def stream_factory(**kwargs):
+        return FakeStream(close_error=OSError("close failed"), **kwargs)
+
+    engine = module.AudioEngine(stream_factory=stream_factory)
+    engine.start()
+
+    with pytest.raises(OSError, match="close failed"):
+        engine.close()
+
     assert engine._stream is None
     assert engine.available is False
 

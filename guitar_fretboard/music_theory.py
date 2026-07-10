@@ -18,7 +18,34 @@ SOLFEGE_NAMES = (
     "Ti",
 )
 OPEN_STRING_MIDI = (64, 59, 55, 50, 45, 40)
-ROOT_LABELS = ("C", "D♭", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B")
+MAJOR_ROOT_LABELS = (
+    "C",
+    "D♭",
+    "D",
+    "E♭",
+    "E",
+    "F",
+    "F♯",
+    "G",
+    "A♭",
+    "A",
+    "B♭",
+    "B",
+)
+NATURAL_MINOR_ROOT_LABELS = (
+    "C",
+    "C♯",
+    "D",
+    "E♭",
+    "E",
+    "F",
+    "F♯",
+    "G",
+    "G♯",
+    "A",
+    "B♭",
+    "B",
+)
 MAJOR_INTERVALS = (0, 2, 4, 5, 7, 9, 11)
 NATURAL_MINOR_INTERVALS = (0, 2, 3, 5, 7, 8, 10)
 
@@ -43,10 +70,18 @@ class ScaleSelection:
     def __post_init__(self) -> None:
         if not 0 <= self.root_pitch_class <= 11:
             raise ValueError("root_pitch_class must be between 0 and 11")
+        if not isinstance(self.kind, ScaleKind):
+            raise TypeError("kind must be a ScaleKind")
 
     @property
     def label(self) -> str:
-        return f"{ROOT_LABELS[self.root_pitch_class]} {self.kind.value}"
+        if self.kind is ScaleKind.MAJOR:
+            root_label = MAJOR_ROOT_LABELS[self.root_pitch_class]
+        elif self.kind is ScaleKind.NATURAL_MINOR:
+            root_label = NATURAL_MINOR_ROOT_LABELS[self.root_pitch_class]
+        else:
+            raise ValueError(f"Unsupported scale kind: {self.kind!r}")
+        return f"{root_label} {self.kind.value}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,11 +108,12 @@ def midi_to_solfege(midi_note: int) -> str:
 
 
 def scale_degree(pitch_class: int, selection: ScaleSelection) -> int | None:
-    intervals = (
-        MAJOR_INTERVALS
-        if selection.kind is ScaleKind.MAJOR
-        else NATURAL_MINOR_INTERVALS
-    )
+    if selection.kind is ScaleKind.MAJOR:
+        intervals = MAJOR_INTERVALS
+    elif selection.kind is ScaleKind.NATURAL_MINOR:
+        intervals = NATURAL_MINOR_INTERVALS
+    else:
+        raise ValueError(f"Unsupported scale kind: {selection.kind!r}")
     offset = (pitch_class - selection.root_pitch_class) % 12
     return intervals.index(offset) + 1 if offset in intervals else None
 

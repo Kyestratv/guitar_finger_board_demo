@@ -96,7 +96,11 @@ class AudioEngine(QObject):
     def __init__(self, mixer=None, stream_factory=None):
         super().__init__()
         self.mixer = mixer or SineMixer()
-        self._stream_factory = stream_factory or sounddevice.OutputStream
+        self._stream_factory = (
+            stream_factory
+            if stream_factory is not None
+            else sounddevice.OutputStream
+        )
         self._stream = None
         self.available = False
         self._callback_error_reported = False

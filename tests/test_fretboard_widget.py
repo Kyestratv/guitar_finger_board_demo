@@ -9,6 +9,12 @@ def _label_texts(widget):
     return {label.text() for label in widget.findChildren(QLabel)}
 
 
+def _grid_coordinates(widget, child):
+    index = widget.grid_layout.indexOf(child)
+    row, column, row_span, column_span = widget.grid_layout.getItemPosition(index)
+    return row, column, row_span, column_span
+
+
 def test_widget_builds_138_positions_with_headers_and_legend(qtbot):
     widget = FretboardWidget()
     qtbot.addWidget(widget)
@@ -21,6 +27,23 @@ def test_widget_builds_138_positions_with_headers_and_legend(qtbot):
     assert {str(fret) for fret in range(23)} <= labels
     assert {f"String {string}" for string in range(1, 7)} <= labels
     assert {f"Octave {octave}" for octave in range(2, 7)} <= labels
+
+
+def test_fret_and_string_headers_occupy_their_grid_coordinates(qtbot):
+    widget = FretboardWidget()
+    qtbot.addWidget(widget)
+    grid_labels = {
+        label.text(): label
+        for label in widget.findChildren(QLabel)
+        if widget.grid_layout.indexOf(label) >= 0
+    }
+
+    assert _grid_coordinates(widget, grid_labels["0"]) == (0, 1, 1, 1)
+    assert _grid_coordinates(widget, grid_labels["22"]) == (0, 23, 1, 1)
+    assert _grid_coordinates(widget, grid_labels["String 1"]) == (1, 0, 1, 1)
+    assert _grid_coordinates(widget, grid_labels["String 6"]) == (6, 0, 1, 1)
+    assert _grid_coordinates(widget, widget.button_for(1, 0)) == (1, 1, 1, 1)
+    assert _grid_coordinates(widget, widget.button_for(6, 22)) == (6, 23, 1, 1)
 
 
 def test_display_modes_and_scale_visibility(qtbot):

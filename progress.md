@@ -38,7 +38,7 @@
 - **Status:** complete
 
 ### Phase 3: Test-Driven Implementation
-- **Status:** in_progress
+- **Status:** complete
 - Actions taken:
   - User selected subagent-driven execution and approved an isolated worktree.
   - Verified the current checkout is the normal `master` checkout, not a linked worktree or submodule.
@@ -74,6 +74,41 @@
   - `guitar_fretboard/main_window.py` (styled)
   - `task_plan.md`, `findings.md`, and `progress.md` (final evidence updated)
 
+### Phase 4: Verification
+- **Status:** complete
+
+### Phase 5: Delivery
+- **Status:** complete
+
+### Phase 6: Final Review Fixes
+- **Status:** complete
+- Actions taken:
+  - Added RED regressions for shutdown exception containment, falsey injected
+    dependencies, scale-kind-specific tonic labels, and invalid scale kinds.
+  - Made window shutdown best-effort and nonmodal: close failures are logged and
+    the close event is always accepted.
+  - Preserved `AudioEngine.close()` cleanup guarantees for both stop and close
+    failures and added focused coverage.
+  - Added conventional labels for all 12 major and all 12 natural-minor roots,
+    including `C♯ Natural Minor` and `G♯ Natural Minor`.
+  - Parameterized scale-degree inclusion, exclusion, and label coverage across
+    all 24 selections; made invalid scale-kind handling explicit and exhaustive.
+  - Strengthened analytic phase-continuity, simultaneous-voice, fretboard-grid,
+    falsey-injection, and duplicate-pitch source-lifetime coverage.
+  - Final focused verification passed 72 tests in 2.82s.
+  - Final full verification passed 75 tests in 2.62s.
+  - Compileall and the exact offscreen GUI smoke both exited 0 with no output.
+  - Committed the complete final-review fix set as one commit.
+- Files modified:
+  - `guitar_fretboard/audio_engine.py`
+  - `guitar_fretboard/main_window.py`
+  - `guitar_fretboard/music_theory.py`
+  - `tests/test_audio_engine.py`
+  - `tests/test_fretboard_widget.py`
+  - `tests/test_main_window.py`
+  - `tests/test_music_theory.py`
+  - `task_plan.md`, `progress.md`, and `.superpowers/sdd/final-fix-report.md`
+
 ## Test Results
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
@@ -93,6 +128,10 @@
 | Initial whitespace check | `git diff --check` | Exit 0, ideally no output | Exit 0; no whitespace errors; LF-to-CRLF warnings printed | Pass with warning; refresh after staging |
 | Final working-tree whitespace check | `git diff --check` after staging | Exit 0, no output | Exit 0, no output | Pass |
 | Final commit-content whitespace check | `git diff --cached --check` | Exit 0, no output | Exit 0, no output | Pass |
+| Final-review focused suite | `$env:QT_QPA_PLATFORM='offscreen'; python -m pytest tests/test_audio_engine.py tests/test_music_theory.py tests/test_fretboard_widget.py tests/test_main_window.py -q` | Zero failures | 72 passed in 2.82s | Pass |
+| Final-review full suite | `$env:QT_QPA_PLATFORM='offscreen'; python -m pytest -q` | Zero failures | 75 passed in 2.62s | Pass |
+| Final-review compile check | `python -m compileall -q guitar_fretboard main.py tests` | Exit 0, no output | Exit 0, no output | Pass |
+| Final-review offscreen GUI smoke | Exact Task 5 offscreen `python -c` command | Exit 0, no output | Exit 0, no output | Pass |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
@@ -133,8 +172,8 @@ The audit re-read `task.md` with explicit UTF-8 decoding and the approved design
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 5: final review, commit, and delivery |
-| Where am I going? | Final diff review, refreshed whitespace verification, commit, and handoff |
+| Where am I? | Phase 6 complete; final review fixes are verified and committed |
+| Where am I going? | Handoff |
 | What's the goal? | Build the guitar fretboard visualizer described in `task.md` |
 | What have I learned? | See `findings.md` |
-| What have I done? | Completed implementation, documentation, full automated verification, offscreen smoke testing, and the requirement audit; see the session log above |
+| What have I done? | Completed implementation, final-review fixes, documentation, full automated verification, offscreen smoke testing, and the requirement audit; see the session log above |

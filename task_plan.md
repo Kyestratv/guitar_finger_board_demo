@@ -40,6 +40,15 @@ Complete
 - [x] Summarize verification evidence and any environment limitations
 - **Status:** complete
 
+### Phase 6: Final Review Fixes
+- [x] Add RED regressions for the final whole-branch review findings
+- [x] Implement shutdown, dependency-injection, and scale-model fixes
+- [x] Strengthen audio, theory, fretboard, and duplicate-pitch tests
+- [x] Run final focused and full verification
+- [x] Record final verification evidence
+- [x] Commit the complete final-fix wave
+- **Status:** complete
+
 ## Key Questions
 1. May the project use third-party Python dependencies such as PySide6, NumPy, and sounddevice? **Yes.**
 2. How should right-button momentary playback interact with left-button toggle playback? **Track independent sources so releasing a momentary source cannot stop a latched source.**

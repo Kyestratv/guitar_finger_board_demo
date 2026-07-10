@@ -1,3 +1,5 @@
+import logging
+
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
@@ -25,6 +27,9 @@ from guitar_fretboard.music_theory import (
 )
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 def _source_id(kind: str, position: FretPosition) -> str:
     return f"{kind}:S{position.string_number}:F{position.fret}"
 
@@ -36,7 +41,9 @@ class MainWindow(QMainWindow):
         start_audio: bool = True,
     ) -> None:
         super().__init__()
-        self.audio_engine = audio_engine or AudioEngine()
+        self.audio_engine = (
+            audio_engine if audio_engine is not None else AudioEngine()
+        )
         self._mode = LabelMode.PITCH_NAME
         self._selection = SCALE_OPTIONS[0]
         self._latched: set[tuple[int, int]] = set()
@@ -331,5 +338,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:
         try:
             self.audio_engine.close()
+        except Exception as error:
+            LOGGER.warning("Audio shutdown failed: %s", error, exc_info=True)
         finally:
             event.accept()
