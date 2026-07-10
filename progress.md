@@ -46,6 +46,8 @@
   - Created worktree `.worktrees/guitar-fretboard-implementation` on branch `feature/guitar-fretboard-visualizer`.
   - Ran a clean baseline compile check; no test suite or pytest dependency exists before Task 1.
   - Preflight-reviewed the implementation plan and added the design-required thread-safe runtime audio error signal path.
+  - Task 1 implemented the project foundation and music-theory core with RED/GREEN evidence.
+  - Task 1 independent review approved both spec compliance and code quality with no findings.
 - Files created/modified:
   - `.gitignore` (created)
 
@@ -53,6 +55,7 @@
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
 | UTF-8 requirement read | `Get-Content -Encoding UTF8 task.md` | Readable Chinese text | Readable Chinese text | Pass |
+| Task 1 focused/full suite | `python -m pytest tests/test_music_theory.py -v`; `python -m pytest -q` | Music theory tests pass | 4 passed | Pass |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |

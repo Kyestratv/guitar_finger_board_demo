@@ -22,7 +22,7 @@ Phase 3
 - **Status:** complete
 
 ### Phase 3: Test-Driven Implementation
-- [ ] Add failing tests for music theory and state behavior
+- [x] Add failing tests for music theory and state behavior
 - [ ] Implement the minimal code required to pass each test
 - [ ] Implement GUI and audio integration incrementally
 - **Status:** in_progress
