@@ -89,3 +89,69 @@ conversion warnings and no whitespace errors.
 - No physical audio device or speaker playback was verified. Audio evidence is
   limited to analytic in-memory mixer tests, fake stream-adapter tests, cleanup
   regressions, and an offscreen GUI smoke run with `start_audio=False`.
+
+## Second Final Re-review Fix
+
+### Scope
+
+- Changed the remaining `AudioEngine` mixer injection from a truthiness fallback
+  to an explicit `None` check.
+- Added a focused falsey-mixer identity regression proving the exact supplied
+  mixer object is retained.
+- Corrected the final requirement audit to reference the renamed analytic
+  phase-continuity test and the simultaneous-voice block test.
+
+### RED evidence
+
+```powershell
+python -m pytest tests/test_audio_engine.py::test_engine_retains_a_supplied_falsey_mixer -vv
+```
+
+Output: `1 failed in 1.20s` (exit 1). The assertion showed that the supplied
+`FalseyMixer` was replaced by a new `SineMixer`.
+
+### GREEN and final verification
+
+```powershell
+python -m pytest tests/test_audio_engine.py -q
+```
+
+Output: `20 passed in 1.25s` (exit 0).
+
+```powershell
+$env:QT_QPA_PLATFORM='offscreen'; python -m pytest -q
+```
+
+Output: `76 passed in 3.06s` (exit 0).
+
+```powershell
+python -m compileall -q guitar_fretboard main.py tests
+```
+
+Output: none (exit 0).
+
+```powershell
+$env:QT_QPA_PLATFORM='offscreen'; python -c "from PySide6.QtCore import QTimer; from PySide6.QtWidgets import QApplication; from guitar_fretboard.audio_engine import AudioEngine; from guitar_fretboard.main_window import MainWindow; app=QApplication([]); window=MainWindow(audio_engine=AudioEngine(), start_audio=False); window.show(); QTimer.singleShot(100, app.quit); raise SystemExit(app.exec())"
+```
+
+Output: none (exit 0).
+
+```powershell
+git diff --check
+git diff --cached --check
+```
+
+Output: both commands exited 0 without whitespace errors after final staging.
+
+### Files
+
+- `guitar_fretboard/audio_engine.py`
+- `tests/test_audio_engine.py`
+- `progress.md`
+- `.superpowers/sdd/final-fix-report.md`
+
+### Limitations
+
+- No physical audio device or speaker playback was verified. The second-wave
+  audio verification used mixer identity/state tests, the full automated suite,
+  and an offscreen GUI smoke with `start_audio=False`.

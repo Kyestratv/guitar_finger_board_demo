@@ -207,6 +207,20 @@ def test_engine_uses_a_supplied_falsey_stream_factory():
     engine.close()
 
 
+def test_engine_retains_a_supplied_falsey_mixer():
+    module = audio_api()
+
+    class FalseyMixer(module.SineMixer):
+        def __bool__(self):
+            return False
+
+    mixer = FalseyMixer()
+
+    engine = module.AudioEngine(mixer=mixer, stream_factory=FakeStream)
+
+    assert engine.mixer is mixer
+
+
 def test_engine_ignores_new_sources_until_stream_is_available():
     module = audio_api()
     engine = module.AudioEngine(stream_factory=FakeStream)
