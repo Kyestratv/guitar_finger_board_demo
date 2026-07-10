@@ -44,6 +44,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Guitar Fretboard Visualizer")
         self._build_ui()
+        self._apply_styles()
         self._connect_audio_error_signal()
         self._set_volume(self.volume_slider.value())
 
@@ -129,6 +130,94 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(central_widget)
         self.resize(1280, 520)
+
+    def _apply_styles(self) -> None:
+        self.setStyleSheet(
+            """
+            QMainWindow {
+                background-color: #111827;
+            }
+            QWidget {
+                color: #e5e7eb;
+            }
+            QLabel[statusPanel="true"] {
+                background-color: #1f2937;
+                border: 1px solid #475569;
+                border-radius: 6px;
+                padding: 8px 10px;
+                font-weight: 600;
+            }
+            QScrollArea {
+                background-color: #0f172a;
+                border: 1px solid #334155;
+                border-radius: 6px;
+            }
+            QScrollBar:horizontal {
+                background-color: #1f2937;
+                height: 14px;
+                margin: 2px;
+            }
+            QScrollBar::handle:horizontal {
+                background-color: #64748b;
+                border-radius: 5px;
+                min-width: 32px;
+            }
+            QScrollBar::add-line:horizontal,
+            QScrollBar::sub-line:horizontal {
+                width: 0;
+            }
+            QPushButton,
+            QComboBox {
+                background-color: #334155;
+                border: 1px solid #64748b;
+                border-radius: 5px;
+                padding: 6px 10px;
+            }
+            QPushButton:hover,
+            QComboBox:hover {
+                background-color: #475569;
+                border-color: #94a3b8;
+            }
+            QPushButton:pressed {
+                background-color: #1e293b;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #1f2937;
+                color: #e5e7eb;
+                selection-background-color: #475569;
+            }
+            QRadioButton {
+                spacing: 6px;
+            }
+            QRadioButton::indicator {
+                width: 14px;
+                height: 14px;
+                border: 2px solid #94a3b8;
+                border-radius: 8px;
+                background-color: #1f2937;
+            }
+            QRadioButton::indicator:checked {
+                background-color: #38bdf8;
+                border-color: #bae6fd;
+            }
+            QSlider::groove:horizontal {
+                background-color: #334155;
+                border-radius: 3px;
+                height: 6px;
+            }
+            QSlider::handle:horizontal {
+                background-color: #38bdf8;
+                border: 1px solid #bae6fd;
+                border-radius: 8px;
+                height: 16px;
+                width: 16px;
+                margin: -5px 0;
+            }
+            QPushButton[fretboardButton="true"][active="true"] {
+                border-color: #f8fafc;
+            }
+            """
+        )
 
     def _connect_audio_error_signal(self) -> None:
         error_signal = getattr(self.audio_engine, "error_occurred", None)

@@ -66,6 +66,14 @@
 | No Git history is available for context | Treat the directory as a new project |
 | Initial plan patch was rejected because one Markdown line lacked an add-file prefix | Reconstructed the patch programmatically and applied it successfully |
 
+## Task 5 Audit Baseline
+- `main.py` and `README.md` were absent at the start of Task 5.
+- `MainWindow` already exposes the four professional English label modes, 24 scale choices, volume, Stop All, active-frequency status, scrollable fretboard, and graceful audio-start failure behavior.
+- `FretboardWidget` owns octave-specific button backgrounds, so application-wide styling must not override those per-octave rules.
+- Entry tests isolate the audio-device startup path while exercising the real `MainWindow` construction, show call, and Qt exit-code return.
+- The final 13-item audit found code and automated-test evidence for all 12 original requirements and the approved major/natural-minor scale extension.
+- Physical speaker output remains the only unverified hardware-dependent behavior; no real audio-device test was performed.
+
 ## Resources
 - `task.md`
 
