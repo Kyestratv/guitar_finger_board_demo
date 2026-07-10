@@ -82,6 +82,7 @@
 - The user approved separate editable `ATTACK_TIME_MS` and `RELEASE_TIME_MS` configuration values.
 - The user selected sample-accurate linear per-voice attack/sustain/release envelopes.
 - Envelope-weighted normalization is preferred over instant voice-count division: divide each sample by `max(1, sum(envelope_gains))`, so the normalization factor changes gradually with the envelopes and remains bounded without a nonlinear limiter.
+- The implemented model uses 10 ms attack and 20 ms release defaults, retains release tails and phase until silence, resumes smoothly when a releasing pitch is re-triggered, and resets immediately only for explicit mixer/device shutdown.
 - The user approved the full design, including release-tail retention, smooth re-triggering, Stop All release, and immediate device-shutdown reset.
 - The envelope design passed placeholder/consistency review and was committed as `3f7b4c3`.
 - Detailed TDD implementation plan written to `docs/superpowers/plans/2026-07-10-click-free-playback-envelopes.md`.

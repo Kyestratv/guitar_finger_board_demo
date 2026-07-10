@@ -71,3 +71,7 @@ GUI tests use Qt's offscreen platform and do not require a display or physical a
 If the default audio output device cannot be opened, the application displays an `Audio Output Unavailable` message. Confirm that an output device is connected, enabled, and not exclusively locked by another program, then restart the application.
 
 The fretboard, labels, scale selection, and octave visualization remain available after an audio-device failure. Playback requests safely become no-ops, so the application can continue in visual-only mode. Runtime audio-rendering errors are also reported without closing the learning interface.
+
+### Adjusting Note Fade Times
+
+The editable note-transition settings are in `guitar_fretboard/audio_config.py`. `ATTACK_TIME_MS = 10.0` controls the fade-in time and `RELEASE_TIME_MS = 20.0` controls the fade-out time; both values are in milliseconds. Restart the application after changing either value. Overly small fade times may reintroduce audible clicks.

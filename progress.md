@@ -110,7 +110,7 @@
   - `task_plan.md`, `progress.md`, and `.superpowers/sdd/final-fix-report.md`
 
 ### Phase 7: Click-Free Playback Envelopes
-- **Status:** in_progress
+- **Status:** complete
 - Actions taken:
   - Reproduced the click-producing boundary discontinuity numerically.
   - Traced the cause to immediate voice insertion/removal and instantaneous voice-count normalization changes.
@@ -126,8 +126,9 @@
   - Task 1 independent review approved spec compliance and code quality; two optional test-hardening notes remain for final review.
   - Task 2 added retained release tails, smooth re-triggering, fading Stop All, immediate reset, and shutdown integration.
   - Task 2 independent review approved spec compliance and code quality; two optional test-specificity notes remain for final review.
+  - Task 3 documented the editable 10 ms attack and 20 ms release settings and completed final automated verification.
 - Files modified:
-  - `task_plan.md`, `findings.md`, and `progress.md`
+  - `README.md`, `task_plan.md`, `findings.md`, and `progress.md`
 
 ## Test Results
 | Test | Input | Expected | Actual | Status |
@@ -154,6 +155,10 @@
 | Final-review offscreen GUI smoke | Exact Task 5 offscreen `python -c` command | Exit 0, no output | Exit 0, no output | Pass |
 | Envelope Task 1 focused/audio/full suites | Focused attack tests; `tests/test_audio_engine.py`; full pytest | Zero failures | 7 focused, 27 audio, 83 total passed | Pass |
 | Envelope Task 2 focused/audio/full suites | Focused lifecycle tests; `tests/test_audio_engine.py`; full pytest | Zero failures | 8 focused, 34 audio, 90 total passed | Pass |
+| Envelope Task 3 full suite | `$env:QT_QPA_PLATFORM='offscreen'; python -m pytest -q` | Zero failures | 90 passed in 2.24s; exit 0 | Pass |
+| Envelope Task 3 compile check | `python -m compileall -q guitar_fretboard main.py tests` | Exit 0, no output | Exit 0; no output | Pass |
+| Envelope Task 3 offscreen GUI smoke | Exact Phase 7 `python -c` command with `start_audio=False` | Exit 0 | Exit 0; no output | Pass |
+| Envelope Task 3 whitespace check | `git diff --check` | Exit 0, no whitespace errors | Exit 0; no whitespace errors; LF-to-CRLF conversion warnings only | Pass with warning |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
