@@ -1,4 +1,5 @@
-<img width="1091" height="398" alt="image" src="https://github.com/user-attachments/assets/9efa4eff-6688-4a9d-ae12-b8bef1a552f9" />
+<img width="1094" height="396" alt="image" src="https://github.com/user-attachments/assets/44dfe0d6-5be5-4691-af4c-4e6884c2ee22" />
+
 
 # Guitar Fretboard Visualizer
 
