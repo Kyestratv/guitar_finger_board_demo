@@ -51,6 +51,9 @@
   - Task 2 implemented the source-aware mixer, float32 sounddevice adapter, and Qt runtime-error signal.
   - Task 2 review found and the implementer fixed callback-error concurrency and stream-cleanup defects.
   - Task 2 re-review approved spec compliance and code quality; two optional test-strengthening notes remain for final review.
+  - Task 3 implemented 138 reusable note buttons, fret/string headers, octave colors, legend, labels, and mouse signals.
+  - Task 3 review found and fixed whole-column shrinkage by retaining hidden-button layout size.
+  - Task 3 re-review approved the implementation; one optional header-coordinate test note remains for final review.
 - Files created/modified:
   - `.gitignore` (created)
 
@@ -60,6 +63,7 @@
 | UTF-8 requirement read | `Get-Content -Encoding UTF8 task.md` | Readable Chinese text | Readable Chinese text | Pass |
 | Task 1 focused/full suite | `python -m pytest tests/test_music_theory.py -v`; `python -m pytest -q` | Music theory tests pass | 4 passed | Pass |
 | Task 2 focused/full suite after fixes | `python -m pytest tests/test_audio_engine.py -v`; `python -m pytest -q` | Audio and regression tests pass | 16 focused; 20 total passed | Pass |
+| Task 3 focused/full suite after fix | `python -m pytest tests/test_fretboard_widget.py -v`; `python -m pytest -q` | Fretboard and regression tests pass | 6 focused; 26 total passed | Pass |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
