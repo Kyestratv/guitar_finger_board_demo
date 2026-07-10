@@ -48,6 +48,9 @@
   - Preflight-reviewed the implementation plan and added the design-required thread-safe runtime audio error signal path.
   - Task 1 implemented the project foundation and music-theory core with RED/GREEN evidence.
   - Task 1 independent review approved both spec compliance and code quality with no findings.
+  - Task 2 implemented the source-aware mixer, float32 sounddevice adapter, and Qt runtime-error signal.
+  - Task 2 review found and the implementer fixed callback-error concurrency and stream-cleanup defects.
+  - Task 2 re-review approved spec compliance and code quality; two optional test-strengthening notes remain for final review.
 - Files created/modified:
   - `.gitignore` (created)
 
@@ -56,6 +59,7 @@
 |------|-------|----------|--------|--------|
 | UTF-8 requirement read | `Get-Content -Encoding UTF8 task.md` | Readable Chinese text | Readable Chinese text | Pass |
 | Task 1 focused/full suite | `python -m pytest tests/test_music_theory.py -v`; `python -m pytest -q` | Music theory tests pass | 4 passed | Pass |
+| Task 2 focused/full suite after fixes | `python -m pytest tests/test_audio_engine.py -v`; `python -m pytest -q` | Audio and regression tests pass | 16 focused; 20 total passed | Pass |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
