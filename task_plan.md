@@ -68,6 +68,8 @@ Phase 3
 | `task.md` displayed as mojibake under PowerShell default decoding | 1 | Re-read with `Get-Content -Encoding UTF8` |
 | Git status/log failed because the directory is not a Git repository | 1 | Record the constraint; decide repository initialization before the design-doc commit step |
 | Initial implementation-plan patch failed validation | 1 | Rebuilt the patch by safely prefixing every Markdown line before applying it |
+| Worktree safety check tested the absent directory node instead of its target path | 1 | Verified `.worktrees/guitar-fretboard-implementation` with `git check-ignore -v` and then created the worktree |
+| Baseline pytest command could not run because pytest is not installed | 1 | Confirmed Task 1 owns dependency installation; retained clean compile and Git baselines |
 | Worktree-directory detection command exited 1 when optional directories were absent | 1 | Interpreted the printed Git metadata, then added the default `.worktrees/` ignore rule explicitly |
 
 ## Notes

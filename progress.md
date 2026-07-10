@@ -43,6 +43,9 @@
   - User selected subagent-driven execution and approved an isolated worktree.
   - Verified the current checkout is the normal `master` checkout, not a linked worktree or submodule.
   - Added `.worktrees/` and Python-generated files to `.gitignore`.
+  - Created worktree `.worktrees/guitar-fretboard-implementation` on branch `feature/guitar-fretboard-visualizer`.
+  - Ran a clean baseline compile check; no test suite or pytest dependency exists before Task 1.
+  - Preflight-reviewed the implementation plan and added the design-required thread-safe runtime audio error signal path.
 - Files created/modified:
   - `.gitignore` (created)
 
@@ -58,6 +61,8 @@
 | 2026-07-10 | Git commands reported this is not a repository | 1 | Recorded the workspace as a new, unversioned project |
 | 2026-07-10 | Implementation-plan patch failed validation | 1 | Reconstructed each patch line with a valid add-file prefix |
 | 2026-07-10 | Optional worktree-directory probe returned exit 1 because neither directory existed | 1 | Used the confirmed Git metadata and selected the default ignored `.worktrees/` directory |
+| 2026-07-10 | `git check-ignore .worktrees` did not match the absent directory node | 1 | Checked the concrete intended child path, which matched `.gitignore` |
+| 2026-07-10 | `python -m pytest` was unavailable during baseline verification | 1 | Confirmed there is no baseline suite and Task 1 installs pytest before its RED run |
 
 ## 5-Question Reboot Check
 | Question | Answer |

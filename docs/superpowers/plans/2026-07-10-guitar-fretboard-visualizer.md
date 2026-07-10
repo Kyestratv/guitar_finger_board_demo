@@ -238,7 +238,7 @@ git commit -m "feat: add guitar music theory model"
 
 **Interfaces:**
 - Consumes: `midi_to_frequency(int) -> float`.
-- Produces: `AudioDeviceError`, `SineMixer(sample_rate=48000)`, and `AudioEngine(mixer=None, stream_factory=None)` with `start`, `add_source`, `remove_source`, `stop_all`, `set_volume_percent`, `active_frequencies`, and `close`.
+- Produces: `AudioDeviceError`, `SineMixer(sample_rate=48000)`, and `AudioEngine(mixer=None, stream_factory=None)` with the Qt signal `error_occurred(str)` plus `start`, `add_source`, `remove_source`, `stop_all`, `set_volume_percent`, `active_frequencies`, and `close`.
 
 - [ ] **Step 1: Write failing source and synthesis tests**
 
@@ -274,7 +274,7 @@ def test_silence_volume_and_stop_all():
     assert mixer.active_frequencies() == ()
 ~~~
 
-Use a complete `FakeStream` with start/stop/close flags. Verify the adapter fills `outdata[:, 0]`, closes the stream, and translates factory/start errors into `AudioDeviceError`.
+Use a complete `FakeStream` with start/stop/close flags. Verify the adapter fills `outdata[:, 0]`, closes the stream, translates factory/start errors into `AudioDeviceError`, and emits one `error_occurred` signal while replacing a failed callback block with silence.
 
 - [ ] **Step 2: Run tests and verify RED**
 
@@ -294,19 +294,26 @@ Use:
 class AudioDeviceError(RuntimeError):
     pass
 
-class AudioEngine:
+class AudioEngine(QObject):
+    error_occurred = Signal(str)
+
     def __init__(self, mixer=None, stream_factory=None):
+        super().__init__()
         self.mixer = mixer or SineMixer()
         self._stream_factory = stream_factory or sounddevice.OutputStream
         self._stream = None
         self.available = False
+        self._callback_error_reported = False
 
     def _callback(self, outdata, frames, time_info, status):
         del time_info, status
         try:
             outdata[:, 0] = self.mixer.render(frames)
-        except Exception:
+        except Exception as exc:
             outdata.fill(0)
+            if not self._callback_error_reported:
+                self._callback_error_reported = True
+                self.error_occurred.emit(f"Audio rendering failed: {exc}")
 
     def start(self):
         try:
@@ -499,7 +506,7 @@ def test_mode_change_stops_playback(qtbot, fake_audio):
     assert window.active_frequencies_label.text() == "Active Frequencies: None"
 ~~~
 
-Also test scale changes, Stop All, sorted unique frequency formatting, volume updates, patched `QMessageBox.critical` on `AudioDeviceError`, and close calling `audio_engine.close()`.
+Also test scale changes, Stop All, sorted unique frequency formatting, volume updates, patched `QMessageBox.critical` on `AudioDeviceError`, a queued runtime-audio-error signal showing one warning, and close calling `audio_engine.close()`.
 
 - [ ] **Step 2: Run tests and verify RED**
 
@@ -538,6 +545,8 @@ QMessageBox.critical(
     f"Details: {error}",
 )
 ~~~
+
+If the supplied audio engine exposes `error_occurred`, connect it to a main-thread slot that stops all playback and shows `QMessageBox.warning` with title `Audio Playback Error` and the emitted detail. Qt's queued cross-thread signal delivery keeps dialogs out of the real-time callback thread.
 
 `closeEvent` closes audio in `try/finally` and accepts the event.
 
