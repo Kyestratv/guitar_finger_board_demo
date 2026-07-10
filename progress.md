@@ -124,6 +124,8 @@
   - Self-reviewed and committed the implementation plan as `b715507`.
   - Task 1 added editable envelope defaults, validated overrides, sample-accurate attack state, and envelope-weighted normalization.
   - Task 1 independent review approved spec compliance and code quality; two optional test-hardening notes remain for final review.
+  - Task 2 added retained release tails, smooth re-triggering, fading Stop All, immediate reset, and shutdown integration.
+  - Task 2 independent review approved spec compliance and code quality; two optional test-specificity notes remain for final review.
 - Files modified:
   - `task_plan.md`, `findings.md`, and `progress.md`
 
@@ -151,6 +153,7 @@
 | Final-review compile check | `python -m compileall -q guitar_fretboard main.py tests` | Exit 0, no output | Exit 0, no output | Pass |
 | Final-review offscreen GUI smoke | Exact Task 5 offscreen `python -c` command | Exit 0, no output | Exit 0, no output | Pass |
 | Envelope Task 1 focused/audio/full suites | Focused attack tests; `tests/test_audio_engine.py`; full pytest | Zero failures | 7 focused, 27 audio, 83 total passed | Pass |
+| Envelope Task 2 focused/audio/full suites | Focused lifecycle tests; `tests/test_audio_engine.py`; full pytest | Zero failures | 8 focused, 34 audio, 90 total passed | Pass |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
