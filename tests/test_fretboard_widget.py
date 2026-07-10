@@ -44,6 +44,23 @@ def test_display_modes_and_scale_visibility(qtbot):
     assert id(widget.button_for(1, 5)) == original_identity
 
 
+def test_fully_hidden_scale_column_retains_widget_width(qtbot):
+    widget = FretboardWidget()
+    qtbot.addWidget(widget)
+    widget.show()
+    qtbot.wait(1)
+    width_before = widget.sizeHint().width()
+
+    widget.set_display(
+        LabelMode.SCALE_DEGREE,
+        ScaleSelection(0, ScaleKind.MAJOR),
+    )
+    qtbot.wait(1)
+
+    assert all(widget.button_for(string, 11).isHidden() for string in range(1, 7))
+    assert widget.sizeHint().width() == width_before
+
+
 def test_active_property_can_be_set_and_cleared(qtbot):
     widget = FretboardWidget()
     qtbot.addWidget(widget)

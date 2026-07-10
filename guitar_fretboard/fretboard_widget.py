@@ -124,6 +124,9 @@ class FretboardWidget(QWidget):
         for position in build_fretboard():
             button = FretButton(position)
             button.setMinimumSize(76, 40)
+            size_policy = button.sizePolicy()
+            size_policy.setRetainSizeWhenHidden(True)
+            button.setSizePolicy(size_policy)
             button.setToolTip(
                 f"String {position.string_number}, Fret {position.fret}: "
                 f"{position.pitch_name} ({position.frequency:.2f} Hz)"
